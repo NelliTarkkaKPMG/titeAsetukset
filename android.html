@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Androidin tietoturva-asetukset</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg2: #141b33;
+    --text: #f3f5ff;
+    --muted: #a8b0d0;
+    --accent: #3ddc84;
+    --accent2: #4c8df6;
+    --warn: #ff9f0a;
+    --phone-bg: #f3f6fc;
+    --phone-card: #ffffff;
+    --md-primary: #0b57d0;
+    --md-on: #d3e3fd;
+    --phone-text: #111;
+    --phone-muted: #5f6368;
+    --phone-sep: transparent;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(1200px 800px at 80% -10%, #22306a 0%, transparent 60%),
+                radial-gradient(900px 700px at -10% 110%, #133a3a 0%, transparent 60%),
+                var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  .top {
+    position: fixed; inset: 0 0 auto 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 32px; z-index: 5;
+  }
+  .brand { font-weight: 700; letter-spacing: .02em; font-size: 18px; display: flex; gap: 10px; align-items: center; }
+  .brand .lock { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); display: grid; place-items: center; }
+  .counter { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 16px; }
+
+  .stage {
+    height: 100%;
+    display: grid;
+    grid-template-columns: minmax(280px, 380px) minmax(0, 720px);
+    gap: clamp(32px, 6vw, 96px);
+    align-items: center; justify-content: center;
+    padding: 80px 40px 70px;
+  }
+
+  /* ---------- Puhelin ---------- */
+  .phone {
+    width: 100%; aspect-ratio: 9 / 19.5; max-height: calc(100vh - 170px);
+    margin: 0 auto;
+    background: #202124; border-radius: 40px; padding: 10px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55), inset 0 0 0 2px #3a3a3c;
+    position: relative;
+  }
+  .screen {
+    height: 100%; border-radius: 32px; overflow: hidden;
+    background: var(--phone-bg); color: var(--phone-text);
+    position: relative; display: flex; flex-direction: column;
+  }
+  .island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 18px; height: 18px; background: #000; border-radius: 50%; z-index: 3; }
+  .status { display: flex; justify-content: space-between; padding: 14px 28px 0; font-size: 14px; font-weight: 600; height: 46px; }
+  .nav { padding: 6px 16px 4px; min-height: 40px; color: #1f1f1f; font-size: 15px; display: flex; align-items: center; gap: 4px; }
+  .nav .chev { font-size: 24px; line-height: 1; }
+  .ptitle { font-size: 30px; font-weight: 400; padding: 12px 22px 20px; line-height: 1.2; }
+  .group { margin: 0 12px 16px; display: flex; flex-direction: column; gap: 3px; }
+  .group .row { background: var(--phone-card); border-radius: 4px; }
+  .group .row:first-child { border-radius: 20px 20px 4px 4px; }
+  .group .row:last-child { border-radius: 4px 4px 20px 20px; }
+  .group .row:only-child { border-radius: 20px; }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; font-size: 15px; min-height: 56px;
+    border-bottom: 1px solid var(--phone-sep);
+    transition: background .4s;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row .label { flex: 1; }
+  .row .val { color: var(--phone-muted); font-size: 14px; }
+  .row.dim .label { color: #c7c7cc; }
+  .row.dim { pointer-events: none; }
+  .group .row.hl { background: #e1eafb; }
+  .row .check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #444746; flex: none; order: -1; position: relative; transition: border-color .3s; }
+  .row .check::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--md-primary); transform: scale(0); transition: transform .3s; }
+  .row.checked .check { border-color: var(--md-primary); }
+  .row.checked .check::after { transform: scale(1); }
+    .footnote { color: var(--phone-muted); font-size: 12.5px; padding: 0 26px 10px; line-height: 1.4; }
+
+  .toggle { width: 52px; height: 32px; border-radius: 32px; background: #e1e2ec; border: 2px solid #74777f; position: relative; transition: background .35s, border-color .35s; flex: none; }
+  .toggle::after { content: ""; position: absolute; top: 6px; left: 6px; width: 16px; height: 16px; border-radius: 50%; background: #74777f; transition: transform .3s ease, width .3s, height .3s, top .3s, left .3s, background .3s; }
+  .toggle.on { background: var(--md-primary); border-color: var(--md-primary); }
+  .toggle.on::after { top: 2px; left: 2px; width: 24px; height: 24px; background: #fff; transform: translateX(20px); }
+
+  .tap {
+    position: absolute; width: 46px; height: 46px; border-radius: 50%;
+    background: rgba(10,132,255,.35); border: 2px solid rgba(10,132,255,.8);
+    pointer-events: none; opacity: 0; transform: scale(.6);
+    transition: opacity .25s, transform .25s, left .6s ease, top .6s ease; z-index: 4;
+  }
+  .tap.show { opacity: 1; transform: scale(1); }
+  .tap.press { transform: scale(.75); }
+
+  /* ---------- Teksti ---------- */
+  .info { min-width: 0; }
+  .kicker { display: inline-flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 14px; }
+  .kicker .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  h1 { font-size: clamp(34px, 4.6vw, 64px); line-height: 1.04; margin: 0 0 22px; letter-spacing: -.02em; text-wrap: balance; }
+  .path { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 26px; }
+  .crumb { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); padding: 7px 13px; border-radius: 999px; font-size: clamp(14px, 1.3vw, 18px); color: var(--muted); transition: all .35s; }
+  .crumb.lit { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+  .arrow { color: var(--muted); opacity: .6; }
+  .why { font-size: clamp(18px, 1.9vw, 26px); line-height: 1.45; color: #dfe3f7; margin: 0 0 22px; max-width: 34ch; }
+  .tip { display: flex; gap: 14px; align-items: flex-start; background: rgba(52,199,89,.12); border: 1px solid rgba(52,199,89,.35); padding: 16px 18px; border-radius: 16px; font-size: clamp(15px, 1.4vw, 19px); line-height: 1.4; max-width: 40ch; }
+  .tip b { color: var(--accent); }
+
+  .fade { animation: fadeUp .6s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- Intro/outro ---------- */
+  .splash { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 40px; z-index: 4; }
+  .splash.show { display: grid; }
+  .splash h2 { font-size: clamp(40px, 7vw, 96px); margin: 0 0 16px; letter-spacing: -.03em; line-height: 1; }
+  .splash p { font-size: clamp(18px, 2.2vw, 30px); color: var(--muted); margin: 0 auto; max-width: 30ch; line-height: 1.4; }
+  .splash .big { font-size: clamp(80px, 12vw, 160px); margin-bottom: 10px; }
+  .stage.hidden { visibility: hidden; }
+
+  .bottom { position: fixed; inset: auto 0 0 0; padding: 0 32px 18px; z-index: 5; }
+  .bar { height: 5px; background: rgba(255,255,255,.12); border-radius: 5px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+  .hint { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; margin-top: 8px; opacity: .7; }
+  .paused .bar i { background: var(--warn); }
+
+  @media (max-width: 860px) {
+    body { overflow: auto; }
+    .stage { grid-template-columns: 1fr; padding: 70px 16px 80px; gap: 24px; height: auto; min-height: 100%; }
+    .phone { max-width: 300px; max-height: none; }
+    .top { padding: 14px 16px; background: var(--bg); }
+    .bottom { padding: 0 16px 12px; background: var(--bg); }
+    .why, .tip { max-width: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <span class="lock">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    </span>
+    Suojaa Androidisi
+  </div>
+  <div class="counter" id="counter"></div>
+</header>
+
+<div class="splash" id="splash"></div>
+
+<main class="stage" id="stage">
+  <div class="phone">
+    <div class="screen" id="screen">
+      <div class="island"></div>
+      <div class="status"><span id="clock">9.41</span><span>▾ 5G ▮</span></div>
+      <div id="screenBody"></div>
+      <div class="tap" id="tap"></div>
+    </div>
+  </div>
+  <section class="info" id="info"></section>
+</main>
+
+<footer class="bottom" id="bottom">
+  <div class="bar"><i id="bar"></i></div>
+  <div class="hint"><span>← → vaihda · välilyönti tauko · F koko näyttö</span><span id="state">Toistetaan</span></div>
+</footer>
+
+<script>
+const SLIDE_MS = 11000;
+
+// Jokainen vinkki: polku Asetuksissa, näkymän rivit ja mitä asetukselle tehdään.
+const tips = [
+  {
+    kicker: "Lukitus",
+    title: "Näytön lukitus PIN-koodilla",
+    path: ["Asetukset", "Turvallisuus ja yksityisyys", "Laitteen lukitus", "Näytön lukitus"],
+    screen: "Valitse näytön lukitus",
+    rows: [
+      { label: "Ei mitään", choice: true },
+      { label: "Pyyhkäisy", choice: true },
+      { label: "Kuvio", choice: true },
+      { label: "PIN-koodi (6 numeroa +)", choice: true, target: true },
+      { label: "Salasana", choice: true },
+    ],
+    footnote: "Vältä 123456, 000000, syntymäpäivää ja helppoja kuvioita kuten L tai Z.",
+    why: "Näytön lukitus on puhelimesi etuovi. Pyyhkäisy tai helppo kuvio ei suojaa mitään – kuvion voi jopa nähdä näytön rasvajäljistä.",
+    tip: "<b>Vinkki:</b> Kuusinumeroinen PIN tai salasana on paljon vahvempi kuin nelinumeroinen."
+  },
+  {
+    kicker: "Lukitus",
+    title: "Sormenjälki- tai kasvojentunnistus",
+    path: ["Asetukset", "Turvallisuus ja yksityisyys", "Laitteen lukitus", "Kasvojen- ja sormenjälkiavaus"],
+    screen: "Kasvojen- ja sormenjälkiavaus",
+    rows: [
+      { label: "Sormenjälkiavaus", toggle: true, on: true, target: true },
+      { label: "Kasvojentunnistusavaus", toggle: true, on: true, auto: true },
+    ],
+    why: "Sormenjälki avaa puhelimen nopeasti, joten sinun ei tarvitse näppäillä PIN-koodia kaikkien nähden bussissa tai koulun käytävällä.",
+    tip: "<b>Muista:</b> Älä koskaan kerro PIN-koodiasi kavereille – edes parhaalle ystävälle."
+  },
+  {
+    kicker: "Varkaussuoja",
+    title: "Varkaussuoja päälle",
+    path: ["Asetukset", "Turvallisuus ja yksityisyys", "Laitteen lukitus", "Varkaussuoja"],
+    screen: "Varkaussuoja",
+    rows: [
+      { label: "Varkauden tunnistuksen lukitus", toggle: true, on: true, target: true },
+      { label: "Offline-laitteen lukitus", toggle: true, on: true, auto: true },
+      { label: "Henkilöllisyyden tarkistus", toggle: true, on: true, auto: true },
+    ],
+    footnote: "Puhelin lukittuu itsestään, jos joku nappaa sen kädestäsi ja juoksee karkuun.",
+    why: "Vaikka varas näkisi PIN-koodisi olan yli, hän ei pääse muuttamaan tärkeitä asetuksia tai Google-tiliäsi.",
+    tip: "<b>Hyvä tietää:</b> Tämä on yksi tärkeimmistä uusista suojauksista – laita se päälle heti."
+  },
+  {
+    kicker: "Google-tili",
+    title: "2-vaiheinen vahvistus",
+    path: ["Asetukset", "Google", "Hallinnoi Google-tiliäsi", "Turvallisuus"],
+    screen: "Turvallisuus",
+    rows: [
+      { label: "Salasana", dim: true, value: "›" },
+      { label: "2-vaiheinen vahvistus", target: true, value: "Päällä" },
+      { label: "Palautuspuhelinnumero", dim: true, value: "›" },
+    ],
+    why: "Vaikka joku saisi salasanasi selville, hän tarvitsee myös vahvistuksen, joka tulee vain sinun puhelimeesi.",
+    tip: "<b>Tärkeää:</b> Älä koskaan anna vahvistuskoodia kenellekään – Google ei kysy sitä sinulta puhelimessa tai viestillä."
+  },
+  {
+    kicker: "Kadonnut puhelin",
+    title: "Löydä laitteeni",
+    path: ["Asetukset", "Google", "Kaikki palvelut", "Löydä laitteeni"],
+    screen: "Löydä laitteeni",
+    rows: [
+      { label: "Käytä Löydä laitteeni -palvelua", toggle: true, on: true, target: true },
+      { label: "Löydä laitteeni -verkosto", value: "Kaikilla alueilla", dim: true },
+    ],
+    why: "Jos puhelin katoaa, löydät sen kartalta, voit soittaa siihen äänen, lukita sen tai tyhjentää sen.",
+    tip: "<b>Kokeile:</b> Avaa android.com/find, niin tiedät valmiiksi miten se toimii."
+  },
+  {
+    kicker: "Päivitykset",
+    title: "Pidä puhelin päivitettynä",
+    path: ["Asetukset", "Järjestelmä", "Ohjelmistopäivitykset"],
+    screen: "Ohjelmistopäivitykset",
+    rows: [
+      { label: "Järjestelmäpäivitys", target: true, value: "Ajan tasalla" },
+      { label: "Tietoturvapäivitys", value: "Ajan tasalla", auto: true, dim: true },
+      { label: "Google Play ‑järjestelmäpäivitys", value: "›", dim: true },
+    ],
+    why: "Päivitykset korjaavat tietoturva-aukkoja, joita hyökkääjät käyttävät. Vanha järjestelmä on kuin lukitsematon ovi.",
+    tip: "<b>Vinkki:</b> Päivitä myös sovellukset: Play Kauppa → profiilikuva → Hallinnoi sovelluksia → Päivitä kaikki."
+  },
+  {
+    kicker: "Sovellukset",
+    title: "Google Play Protect",
+    path: ["Play Kauppa", "Profiilikuva", "Play Protect", "Asetukset"],
+    screen: "Play Protect",
+    rows: [
+      { label: "Etsi tietoturvauhkia sovelluksista", toggle: true, on: true, target: true },
+      { label: "Paranna haitallisten sovellusten tunnistusta", toggle: true, on: true, auto: true },
+    ],
+    why: "Play Protect tarkistaa sovelluksesi ja varoittaa, jos puhelimessa on haittaohjelma.",
+    tip: "<b>Sääntö:</b> Lataa sovellukset vain Play Kaupasta – ei linkeistä, viesteistä tai oudoilta sivuilta."
+  },
+  {
+    kicker: "Sovellukset",
+    title: "Estä tuntemattomat sovellukset",
+    path: ["Asetukset", "Sovellukset", "Erityiset sovellusten käyttöoikeudet", "Tuntemattomien sovellusten asennus"],
+    screen: "Chrome",
+    rows: [
+      { label: "Salli tästä lähteestä", toggle: true, on: false, start: true, target: true },
+    ],
+    footnote: "Kun asetus on pois, sovelluksia ei voi asentaa netistä ladatuista tiedostoista (.apk).",
+    why: "Huijarit houkuttelevat lataamaan \"ilmaisia\" pelejä tai huijaussovelluksia suoraan netistä. Ne ohittavat Play Kaupan tarkistukset.",
+    tip: "<b>Huomaa:</b> Tässä asetus kannattaa laittaa POIS päältä kaikille sovelluksille."
+  },
+  {
+    kicker: "Sijainti",
+    title: "Sijainti vain tarvittaessa",
+    path: ["Asetukset", "Sijainti", "Sovellusten sijaintiluvat", "[Sovellus]"],
+    screen: "Sijaintilupa",
+    rows: [
+      { label: "Salli aina", choice: true },
+      { label: "Salli vain sovelluksen käytön aikana", choice: true, target: true },
+      { label: "Kysy aina", choice: true },
+      { label: "Älä salli", choice: true },
+      { label: "Käytä tarkkaa sijaintia", toggle: true, on: false, start: true, second: true },
+    ],
+    why: "Moni sovellus ei tarvitse tarkkaa sijaintiasi ollenkaan. Jaa sijainti vain niille, joille se on oikeasti tarpeen.",
+    tip: "<b>Muista myös:</b> Tarkista Snapchatin Snap Map ja Googlen sijainnin jako – kuka näkee missä olet?"
+  },
+  {
+    kicker: "Yksityisyys",
+    title: "Poista käyttämättömien sovellusten luvat",
+    path: ["Asetukset", "Sovellukset", "[Sovellus]"],
+    screen: "Sovelluksen tiedot",
+    rows: [
+      { label: "Luvat", value: "Kamera ja mikrofoni", dim: true },
+      { label: "Keskeytä toiminta, jos sovellusta ei käytetä", toggle: true, on: true, target: true },
+    ],
+    footnote: "Luvat poistetaan ja väliaikaiset tiedostot tyhjennetään, jos et käytä sovellusta muutamaan kuukauteen.",
+    why: "Vanha peli, jota et enää pelaa, ei tarvitse pääsyä kameraan, mikrofoniin tai kuviisi.",
+    tip: "<b>Vinkki:</b> Kohdasta Turvallisuus ja yksityisyys → Yksityisyys → Lupien ylläpito näet, mikä sovellus käyttää mitäkin."
+  },
+  {
+    kicker: "Puhelut",
+    title: "Suodata roskapuhelut",
+    path: ["Puhelin-sovellus", "Asetukset", "Soittajan tunnus ja roskaposti"],
+    screen: "Soittajan tunnus ja roskaposti",
+    rows: [
+      { label: "Näytä soittajan ja roskapostin tunnus", toggle: true, on: true, auto: true },
+      { label: "Suodata roskapuhelut", toggle: true, on: true, target: true },
+    ],
+    footnote: "Epäillyt huijauspuhelut eivät soi, mutta näet ne puheluhistoriassa.",
+    why: "Huijarit soittavat usein tuntemattomista tai ulkomaisista numeroista. Näin ne eivät pääse häiritsemään.",
+    tip: "<b>Muista:</b> Pankki tai poliisi ei koskaan kysy tunnuksiasi tai koodejasi puhelimessa."
+  },
+  {
+    kicker: "Viestit",
+    title: "Roskapostisuojaus viesteihin",
+    path: ["Viestit-sovellus", "Asetukset", "Suojaus ja turvallisuus", "Roskapostisuojaus"],
+    screen: "Roskapostisuojaus",
+    rows: [
+      { label: "Ota roskapostisuojaus käyttöön", toggle: true, on: true, target: true },
+    ],
+    why: "Huijausviestit (\"pakettisi odottaa\", \"tilisi suljetaan\") tunnistetaan ja niistä varoitetaan.",
+    tip: "<b>Sääntö:</b> Älä avaa linkkejä odottamattomista viesteistä. Jos epäilet, kysy aikuiselta."
+  },
+  {
+    kicker: "Lukitusnäyttö",
+    title: "Piilota ilmoitusten sisältö",
+    path: ["Asetukset", "Ilmoitukset", "Lukitusnäytön ilmoitukset"],
+    screen: "Lukitusnäytön ilmoitukset",
+    rows: [
+      { label: "Näytä kaikki ilmoitussisältö", choice: true },
+      { label: "Näytä arkaluontoinen sisältö vain, kun laite on auki", choice: true, target: true },
+      { label: "Älä näytä ilmoituksia", choice: true },
+    ],
+    why: "Muuten kuka tahansa näkee viestisi ja vahvistuskoodisi lukitusnäytöltä – vaikka puhelin olisi lukittu.",
+    tip: "<b>Bonus:</b> Näet viestit heti, kun avaat lukituksen sormenjäljellä."
+  },
+  {
+    kicker: "Lukitusnäyttö",
+    title: "Näytön aikakatkaisu",
+    path: ["Asetukset", "Näyttö", "Näytön aikakatkaisu"],
+    screen: "Näytön aikakatkaisu",
+    rows: [
+      { label: "15 sekuntia", choice: true },
+      { label: "30 sekuntia", choice: true, target: true },
+      { label: "1 minuutti", choice: true },
+      { label: "10 minuuttia", choice: true },
+    ],
+    why: "Jos unohdat puhelimen pöydälle, se lukittuu itsestään ennen kuin kukaan ehtii selata sitä.",
+    tip: "<b>Vinkki:</b> Lyhyt aika säästää myös akkua."
+  },
+  {
+    kicker: "Jakaminen",
+    title: "Quick Share vain yhteystiedoille",
+    path: ["Asetukset", "Yhdistetyt laitteet", "Yhteysasetukset", "Quick Share"],
+    screen: "Kuka voi jakaa kanssasi",
+    rows: [
+      { label: "Omat laitteet", choice: true },
+      { label: "Yhteystiedot", choice: true, target: true },
+      { label: "Kaikki 10 minuutin ajan", choice: true },
+    ],
+    why: "Kun jakaminen on auki kaikille, tuntemattomat voivat lähettää sinulle kuvia esimerkiksi koulussa tai bussissa.",
+    tip: "<b>Huomaa:</b> Tarkista myös laitteen nimi, ettei koko nimesi näy kaikille lähellä oleville."
+  },
+  {
+    kicker: "Turvallisuus",
+    title: "Arkaluontoisen sisällön varoitukset",
+    path: ["Viestit-sovellus", "Asetukset", "Suojaus ja turvallisuus", "Arkaluontoisen sisällön varoitukset"],
+    screen: "Arkaluontoisen sisällön varoitukset",
+    rows: [
+      { label: "Arkaluontoisen sisällön varoitukset", toggle: true, on: true, target: true },
+    ],
+    footnote: "Alastonkuvat sumennetaan ennen kuin näet ne. Tunnistus tapahtuu laitteella, Google ei näe kuvia.",
+    why: "Suojaa sinua ei-toivotuilta kuvilta viesteissä ja varoittaa ennen kuin lähetät jotain, mitä voisit katua.",
+    tip: "<b>Muista:</b> Jos saat ahdistavan kuvan tai viestin, kerro luotettavalle aikuiselle. Se ei ole sinun vikasi."
+  },
+  {
+    kicker: "Salasanat",
+    title: "Salasanatarkistus",
+    path: ["Asetukset", "Google", "Salasanojen ylläpito", "Salasanatarkistus"],
+    screen: "Salasanatarkistus",
+    rows: [
+      { label: "Vaarantuneet salasanat", target: true, value: "Tarkista" },
+      { label: "Uudelleenkäytetyt salasanat", value: "›", dim: true },
+      { label: "Heikot salasanat", value: "›", dim: true },
+    ],
+    why: "Google kertoo, jos salasanasi on vuotanut netissä tai käytät samaa salasanaa monessa paikassa.",
+    tip: "<b>Vinkki:</b> Anna puhelimen ehdottaa vahva salasana aina, kun luot uuden tilin."
+  },
+];
+
+const $ = id => document.getElementById(id);
+const screenBody = $("screenBody"), info = $("info"), tap = $("tap");
+let index = -1, timers = [], paused = false, start = 0, elapsed = 0, raf;
+
+function esc(s) { return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+function renderPhone(t) {
+    const rows = t.rows.map((r, i) => {
+    const cls = ["row", r.dim ? "dim" : ""].join(" ");
+    let right = "";
+    if (r.toggle) right = `<span class="toggle ${r.start ? "on" : ""}"></span>`;
+    else if (r.choice) right = `<span class="check"></span>`;
+    else if (r.value) right = `<span class="val">${esc(r.value)}</span>`;
+    return `<div class="${cls}" data-i="${i}"><span class="label">${esc(r.label)}</span>${right}</div>`;
+  }).join("");
+  screenBody.innerHTML = `
+    <div class="nav"><span class="chev">←</span></div>
+    <div class="ptitle">${esc(t.screen)}</div>
+    <div class="group">${rows}</div>
+    ${t.footnote ? `<div class="footnote">${esc(t.footnote)}</div>` : ""}`;
+}
+
+function rowEl(i) { return screenBody.querySelector(`.row[data-i="${i}"]`); }
+
+function tapOn(el, then) {
+  const s = $("screen").getBoundingClientRect(), r = el.getBoundingClientRect();
+  const target = el.querySelector(".toggle, .check, .val") || el;
+  const tr = target.getBoundingClientRect();
+  tap.style.left = (tr.left - s.left + tr.width / 2 - 23) + "px";
+  tap.style.top = (r.top - s.top + r.height / 2 - 23) + "px";
+  tap.classList.add("show");
+  later(() => { tap.classList.add("press"); el.classList.add("hl"); then && then(); }, 650);
+  later(() => { tap.classList.remove("press"); }, 900);
+  later(() => { el.classList.remove("hl"); }, 1400);
+}
+
+function applyRow(t, i) {
+  const r = t.rows[i], el = rowEl(i);
+  if (r.toggle) el.querySelector(".toggle").classList.toggle("on", r.on);
+  if (r.choice) {
+    screenBody.querySelectorAll(".row").forEach(x => x.classList.remove("checked"));
+    el.classList.add("checked");
+  }
+}
+
+function renderInfo(t) {
+  const crumbs = t.path.map((p, i) =>
+    `${i ? '<span class="arrow">›</span>' : ""}<span class="crumb" data-c="${i}">${esc(p)}</span>`).join("");
+  info.innerHTML = `
+    <div class="fade">
+      <div class="kicker"><span class="dot"></span>${esc(t.kicker)}</div>
+      <h1>${esc(t.title)}</h1>
+      <div class="path">${crumbs}</div>
+      <p class="why">${esc(t.why)}</p>
+      <div class="tip">💡<span>${t.tip}</span></div>
+    </div>`;
+  t.path.forEach((_, i) => later(() => {
+    const c = info.querySelector(`[data-c="${i}"]`);
+    c && c.classList.add("lit");
+  }, 500 + i * 450));
+}
+
+function splash(html) {
+  $("splash").innerHTML = `<div class="fade">${html}</div>`;
+  $("splash").classList.add("show");
+  $("stage").classList.add("hidden");
+}
+
+function show(i) {
+  clearTimers();
+  tap.classList.remove("show");
+  const total = tips.length + 2;
+  index = (i + total) % total;
+  $("splash").classList.remove("show");
+  $("stage").classList.remove("hidden");
+
+  if (index === 0) {
+    $("counter").textContent = "";
+    splash(`<div class="big">🤖🔒</div><h2>Onko Androidisi suojattu?</h2>
+      <p>${tips.length} asetusta, jotka jokaisen kannattaa laittaa päälle – katso ja tarkista omasi!<br><small>Valikoiden nimet voivat vaihdella valmistajan mukaan (esim. Samsung).</small></p>`);
+  } else if (index === total - 1) {
+    $("counter").textContent = "";
+    splash(`<div class="big">✅</div><h2>Tarkista omat asetuksesi nyt!</h2>
+      <p>Ota puhelin esiin ja käy läpi ainakin näytön lukitus, 2-vaiheinen vahvistus ja Löydä laitteeni.</p>`);
+  } else {
+    const t = tips[index - 1];
+    $("counter").textContent = `${index} / ${tips.length}`;
+    renderPhone(t);
+    renderInfo(t);
+    const delay = 600 + t.path.length * 450;
+    const targetI = t.rows.findIndex(r => r.target);
+    later(() => tapOn(rowEl(targetI), () => applyRow(t, targetI)), delay);
+    let d = delay + 1500;
+    t.rows.forEach((r, ri) => {
+      if (ri === targetI) return;
+      if (r.auto) { later(() => applyRow(t, ri), d); d += 350; }
+      if (r.second) { later(() => tapOn(rowEl(ri), () => applyRow(t, ri)), d); d += 1500; }
+    });
+    later(() => tap.classList.remove("show"), d + 300);
+  }
+  elapsed = 0; start = performance.now();
+}
+
+function duration() { return index === 0 || index === tips.length + 1 ? 6000 : SLIDE_MS; }
+
+function tick(now) {
+  if (!paused) {
+    const p = (elapsed + now - start) / duration();
+    $("bar").style.width = Math.min(p, 1) * 100 + "%";
+    if (p >= 1) show(index + 1);
+  }
+  raf = requestAnimationFrame(tick);
+}
+
+function setPaused(v) {
+  if (v === paused) return;
+  paused = v;
+  if (paused) elapsed += performance.now() - start; else start = performance.now();
+  document.body.classList.toggle("paused", paused);
+  $("state").textContent = paused ? "Tauko" : "Toistetaan";
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight") show(index + 1);
+  else if (e.key === "ArrowLeft") show(index - 1);
+  else if (e.key === " ") { e.preventDefault(); setPaused(!paused); }
+  else if (e.key.toLowerCase() === "f") {
+    document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+  }
+});
+
+function updateClock() {
+  const d = new Date();
+  $("clock").textContent = d.getHours() + "." + String(d.getMinutes()).padStart(2, "0");
+}
+updateClock(); setInterval(updateClock, 30000);
+
+show(0);
+raf = requestAnimationFrame(tick);
+</script>
+</body>
+</html>
