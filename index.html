@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>iPhonen tietoturva-asetukset</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg2: #141b33;
+    --text: #f3f5ff;
+    --muted: #a8b0d0;
+    --accent: #34c759;
+    --accent2: #0a84ff;
+    --warn: #ff9f0a;
+    --phone-bg: #f2f2f7;
+    --phone-card: #ffffff;
+    --phone-text: #111;
+    --phone-muted: #8e8e93;
+    --phone-sep: #e5e5ea;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(1200px 800px at 80% -10%, #22306a 0%, transparent 60%),
+                radial-gradient(900px 700px at -10% 110%, #133a3a 0%, transparent 60%),
+                var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  .top {
+    position: fixed; inset: 0 0 auto 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 32px; z-index: 5;
+  }
+  .brand { font-weight: 700; letter-spacing: .02em; font-size: 18px; display: flex; gap: 10px; align-items: center; }
+  .brand .lock { width: 30px; height: 30px; border-radius: 9px; background: var(--accent); display: grid; place-items: center; }
+  .counter { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 16px; }
+
+  .stage {
+    height: 100%;
+    display: grid;
+    grid-template-columns: minmax(280px, 380px) minmax(0, 720px);
+    gap: clamp(32px, 6vw, 96px);
+    align-items: center; justify-content: center;
+    padding: 80px 40px 70px;
+  }
+
+  /* ---------- Puhelin ---------- */
+  .phone {
+    width: 100%; aspect-ratio: 9 / 19.5; max-height: calc(100vh - 170px);
+    margin: 0 auto;
+    background: #1c1c1e; border-radius: 52px; padding: 12px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55), inset 0 0 0 2px #3a3a3c;
+    position: relative;
+  }
+  .screen {
+    height: 100%; border-radius: 42px; overflow: hidden;
+    background: var(--phone-bg); color: var(--phone-text);
+    position: relative; display: flex; flex-direction: column;
+  }
+  .island { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 34%; height: 28px; background: #000; border-radius: 20px; z-index: 3; }
+  .status { display: flex; justify-content: space-between; padding: 14px 28px 0; font-size: 14px; font-weight: 600; height: 46px; }
+  .nav { padding: 6px 16px 4px; min-height: 30px; color: var(--accent2); font-size: 16px; display: flex; align-items: center; gap: 4px; }
+  .nav .chev { font-size: 22px; line-height: 1; }
+  .ptitle { font-size: 28px; font-weight: 700; padding: 2px 18px 14px; line-height: 1.15; }
+  .group { background: var(--phone-card); margin: 0 14px 16px; border-radius: 12px; overflow: hidden; }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px; font-size: 15px; min-height: 46px;
+    border-bottom: 1px solid var(--phone-sep);
+    transition: background .4s;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row .label { flex: 1; }
+  .row .val { color: var(--phone-muted); font-size: 14px; }
+  .row.dim .label { color: #c7c7cc; }
+  .row.dim { pointer-events: none; }
+  .row.hl { background: #e7f1ff; }
+  .row .check { color: var(--accent2); font-weight: 700; opacity: 0; transition: opacity .3s; }
+  .row.checked .check { opacity: 1; }
+  .footnote { color: var(--phone-muted); font-size: 12.5px; padding: 0 30px 10px; margin-top: -8px; line-height: 1.35; }
+
+  .toggle { width: 51px; height: 31px; border-radius: 31px; background: #e9e9eb; position: relative; transition: background .35s; flex: none; }
+  .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.25); transition: transform .35s cubic-bezier(.3,1.4,.6,1); }
+  .toggle.on { background: var(--accent); }
+  .toggle.on::after { transform: translateX(20px); }
+
+  .tap {
+    position: absolute; width: 46px; height: 46px; border-radius: 50%;
+    background: rgba(10,132,255,.35); border: 2px solid rgba(10,132,255,.8);
+    pointer-events: none; opacity: 0; transform: scale(.6);
+    transition: opacity .25s, transform .25s, left .6s ease, top .6s ease; z-index: 4;
+  }
+  .tap.show { opacity: 1; transform: scale(1); }
+  .tap.press { transform: scale(.75); }
+
+  /* ---------- Teksti ---------- */
+  .info { min-width: 0; }
+  .kicker { display: inline-flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 14px; }
+  .kicker .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  h1 { font-size: clamp(34px, 4.6vw, 64px); line-height: 1.04; margin: 0 0 22px; letter-spacing: -.02em; text-wrap: balance; }
+  .path { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 26px; }
+  .crumb { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); padding: 7px 13px; border-radius: 999px; font-size: clamp(14px, 1.3vw, 18px); color: var(--muted); transition: all .35s; }
+  .crumb.lit { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+  .arrow { color: var(--muted); opacity: .6; }
+  .why { font-size: clamp(18px, 1.9vw, 26px); line-height: 1.45; color: #dfe3f7; margin: 0 0 22px; max-width: 34ch; }
+  .tip { display: flex; gap: 14px; align-items: flex-start; background: rgba(52,199,89,.12); border: 1px solid rgba(52,199,89,.35); padding: 16px 18px; border-radius: 16px; font-size: clamp(15px, 1.4vw, 19px); line-height: 1.4; max-width: 40ch; }
+  .tip b { color: var(--accent); }
+
+  .fade { animation: fadeUp .6s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- Intro/outro ---------- */
+  .splash { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 40px; z-index: 4; }
+  .splash.show { display: grid; }
+  .splash h2 { font-size: clamp(40px, 7vw, 96px); margin: 0 0 16px; letter-spacing: -.03em; line-height: 1; }
+  .splash p { font-size: clamp(18px, 2.2vw, 30px); color: var(--muted); margin: 0 auto; max-width: 30ch; line-height: 1.4; }
+  .splash .big { font-size: clamp(80px, 12vw, 160px); margin-bottom: 10px; }
+  .stage.hidden { visibility: hidden; }
+
+  .bottom { position: fixed; inset: auto 0 0 0; padding: 0 32px 18px; z-index: 5; }
+  .bar { height: 5px; background: rgba(255,255,255,.12); border-radius: 5px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+  .hint { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; margin-top: 8px; opacity: .7; }
+  .paused .bar i { background: var(--warn); }
+
+  @media (max-width: 860px) {
+    body { overflow: auto; }
+    .stage { grid-template-columns: 1fr; padding: 70px 16px 80px; gap: 24px; height: auto; min-height: 100%; }
+    .phone { max-width: 300px; max-height: none; }
+    .top { padding: 14px 16px; background: var(--bg); }
+    .bottom { padding: 0 16px 12px; background: var(--bg); }
+    .why, .tip { max-width: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <span class="lock">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    </span>
+    Suojaa iPhonesi
+  </div>
+  <div class="counter" id="counter"></div>
+</header>
+
+<div class="splash" id="splash"></div>
+
+<main class="stage" id="stage">
+  <div class="phone">
+    <div class="screen" id="screen">
+      <div class="island"></div>
+      <div class="status"><span id="clock">9.41</span><span>●●● 5G ▮</span></div>
+      <div id="screenBody"></div>
+      <div class="tap" id="tap"></div>
+    </div>
+  </div>
+  <section class="info" id="info"></section>
+</main>
+
+<footer class="bottom" id="bottom">
+  <div class="bar"><i id="bar"></i></div>
+  <div class="hint"><span>← → vaihda · välilyönti tauko · F koko näyttö</span><span id="state">Toistetaan</span></div>
+</footer>
+
+<script>
+const SLIDE_MS = 11000;
+
+// Jokainen vinkki: polku Asetuksissa, näkymän rivit ja mitä asetukselle tehdään.
+const tips = [
+  {
+    kicker: "Lukitus",
+    title: "Vahva pääsykoodi",
+    path: ["Asetukset", "Face ID ja pääsykoodi", "Vaihda pääsykoodi"],
+    screen: "Face ID ja pääsykoodi",
+    rows: [
+      { label: "Laita pääsykoodi pois" , dim: true },
+      { label: "Vaihda pääsykoodi", target: true, value: "6 numeroa +" },
+    ],
+    footnote: "Vältä 123456, 000000 ja syntymäpäivää.",
+    why: "Pääsykoodi on puhelimesi etuovi. Kuusinumeroinen tai pidempi koodi on paljon vaikeampi arvata kuin nelinumeroinen.",
+    tip: "<b>Vinkki:</b> Valitse \"Pääsykoodin valinnat\" → oma aakkosnumeerinen koodi, niin se on vielä vahvempi."
+  },
+  {
+    kicker: "Lukitus",
+    title: "Face ID käyttöön",
+    path: ["Asetukset", "Face ID ja pääsykoodi"],
+    screen: "Face ID ja pääsykoodi",
+    rows: [
+      { label: "iPhonen avaus", toggle: true, on: true, target: true },
+      { label: "Apple Pay", toggle: true, on: true, auto: true },
+      { label: "Salasanojen automaattitäyttö", toggle: true, on: true, auto: true },
+    ],
+    why: "Face ID avaa puhelimen nopeasti, joten sinun ei tarvitse näppäillä koodia kaikkien nähden bussissa tai koulun käytävällä.",
+    tip: "<b>Muista:</b> Älä koskaan kerro pääsykoodiasi kavereille – edes parhaalle ystävälle."
+  },
+  {
+    kicker: "Varkaussuoja",
+    title: "Varastetun laitteen suojaus",
+    path: ["Asetukset", "Face ID ja pääsykoodi", "Varastetun laitteen suojaus"],
+    screen: "Varastetun laitteen suojaus",
+    rows: [
+      { label: "Varastetun laitteen suojaus", toggle: true, on: true, target: true },
+    ],
+    footnote: "Kun olet poissa tutuista paikoista, tärkeät muutokset vaativat Face ID:n ja odotusajan.",
+    why: "Vaikka varas näkisi pääsykoodisi olan yli, hän ei pysty vaihtamaan Apple ID:n salasanaa tai poistamaan Etsi-toimintoa.",
+    tip: "<b>Hyvä tietää:</b> Tämä on yksi tärkeimmistä uusista suojauksista – laita se päälle heti."
+  },
+  {
+    kicker: "Apple-tili",
+    title: "Kaksivaiheinen todennus",
+    path: ["Asetukset", "[Oma nimesi]", "Kirjautuminen ja suojaus"],
+    screen: "Kirjautuminen ja suojaus",
+    rows: [
+      { label: "Vaihda salasana", dim: true },
+      { label: "Kaksivaiheinen todennus", target: true, value: "Päällä" },
+      { label: "Luotetut puhelinnumerot", dim: true },
+    ],
+    why: "Vaikka joku saisi salasanasi selville, hän tarvitsee myös koodin, joka tulee vain sinun laitteellesi.",
+    tip: "<b>Tärkeää:</b> Älä koskaan anna vahvistuskoodia kenellekään – Apple ei kysy sitä sinulta puhelimessa tai viestillä."
+  },
+  {
+    kicker: "Kadonnut puhelin",
+    title: "Etsi iPhoneni",
+    path: ["Asetukset", "[Oma nimesi]", "Etsi", "Etsi iPhoneni"],
+    screen: "Etsi iPhoneni",
+    rows: [
+      { label: "Etsi iPhoneni", toggle: true, on: true, target: true },
+      { label: "Etsi-verkko", toggle: true, on: true, auto: true },
+      { label: "Lähetä viimeinen sijainti", toggle: true, on: true, auto: true },
+    ],
+    why: "Jos puhelin katoaa, löydät sen kartalta, voit soittaa siihen äänen tai lukita sen – vaikka akku olisi juuri loppunut.",
+    tip: "<b>Kokeile:</b> Avaa Etsi-appi tai icloud.com/find, niin tiedät valmiiksi miten se toimii."
+  },
+  {
+    kicker: "Päivitykset",
+    title: "Automaattiset päivitykset",
+    path: ["Asetukset", "Yleiset", "Ohjelmistopäivitys", "Automaattiset päivitykset"],
+    screen: "Automaattiset päivitykset",
+    rows: [
+      { label: "iOS-päivitykset: Asenna", toggle: true, on: true, target: true },
+      { label: "Suojausvasteet ja järjestelmätiedostot", toggle: true, on: true, auto: true },
+    ],
+    why: "Päivitykset korjaavat tietoturva-aukkoja, joita hyökkääjät käyttävät. Vanha iOS on kuin lukitsematon ovi.",
+    tip: "<b>Vinkki:</b> Päivitä myös appit: App Store → profiilikuva → Päivitä kaikki."
+  },
+  {
+    kicker: "Yksityisyys",
+    title: "Kiellä appien seuranta",
+    path: ["Asetukset", "Tietosuoja ja turvallisuus", "Seuranta"],
+    screen: "Seuranta",
+    rows: [
+      { label: "Salli appien pyytää lupaa seurata", toggle: true, on: false, start: true, target: true },
+    ],
+    footnote: "Appit eivät voi seurata sinua muiden appien ja sivustojen välillä mainontaa varten.",
+    why: "Monet appit haluavat kerätä tietoa siitä, mitä teet muualla. Tämä kieltää sen kaikilta kerralla.",
+    tip: "<b>Huomaa:</b> Tässä asetus kannattaa laittaa POIS päältä."
+  },
+  {
+    kicker: "Sijainti",
+    title: "Sijainti vain tarvittaessa",
+    path: ["Asetukset", "Tietosuoja ja turvallisuus", "Sijaintipalvelut", "[Appi]"],
+    screen: "Salli sijainnin käyttö",
+    rows: [
+      { label: "Ei koskaan", choice: true },
+      { label: "Kysy seuraavalla kerralla", choice: true },
+      { label: "Kun appia käytetään", choice: true, target: true },
+      { label: "Tarkka sijainti", toggle: true, on: false, start: true, second: true },
+    ],
+    why: "Moni appi ei tarvitse tarkkaa sijaintiasi ollenkaan. Jaa sijainti vain niille, joille se on oikeasti tarpeen.",
+    tip: "<b>Muista myös:</b> Tarkista Snapchatin Snap Map ja Etsi-apin sijainnin jako – kuka näkee missä olet?"
+  },
+  {
+    kicker: "Puhelut",
+    title: "Hiljennä tuntemattomat soittajat",
+    path: ["Asetukset", "Appit", "Puhelin", "Hiljennä tuntemattomat soittajat"],
+    screen: "Hiljennä tuntemattomat soittajat",
+    rows: [
+      { label: "Hiljennä tuntemattomat soittajat", toggle: true, on: true, target: true },
+    ],
+    footnote: "Tuntemattomat numerot menevät suoraan vastaajaan ja näkyvät soitettujen listalla.",
+    why: "Huijarit soittavat usein tuntemattomista tai ulkomaisista numeroista. Näin ne eivät pääse häiritsemään.",
+    tip: "<b>Muista:</b> Pankki tai poliisi ei koskaan kysy tunnuksiasi tai koodejasi puhelimessa."
+  },
+  {
+    kicker: "Viestit",
+    title: "Suodata tuntemattomat lähettäjät",
+    path: ["Asetukset", "Appit", "Viestit", "Tuntemattomat ja roskaposti"],
+    screen: "Tuntemattomat ja roskaposti",
+    rows: [
+      { label: "Suodata tuntemattomat lähettäjät", toggle: true, on: true, target: true },
+      { label: "Suodata roskaposti", toggle: true, on: true, auto: true },
+    ],
+    why: "Huijausviestit (\"pakettisi odottaa\", \"tilisi suljetaan\") siirtyvät omaan kansioonsa, eivätkä linkit ole heti klikattavissa.",
+    tip: "<b>Sääntö:</b> Älä avaa linkkejä odottamattomista viesteistä. Jos epäilet, kysy aikuiselta."
+  },
+  {
+    kicker: "Lukitusnäyttö",
+    title: "Piilota viestien esikatselut",
+    path: ["Asetukset", "Ilmoitukset", "Näytä esikatselut"],
+    screen: "Näytä esikatselut",
+    rows: [
+      { label: "Aina", choice: true },
+      { label: "Kun lukitus avattu", choice: true, target: true },
+      { label: "Ei koskaan", choice: true },
+    ],
+    why: "Muuten kuka tahansa näkee viestisi ja vahvistuskoodisi lukitusnäytöltä – vaikka puhelin olisi lukittu.",
+    tip: "<b>Bonus:</b> Face ID näyttää viestit automaattisesti, kun sinä katsot puhelinta."
+  },
+  {
+    kicker: "Lukitusnäyttö",
+    title: "Automaattinen lukitus",
+    path: ["Asetukset", "Näyttö ja kirkkaus", "Automaattinen lukitus"],
+    screen: "Automaattinen lukitus",
+    rows: [
+      { label: "30 sekuntia", choice: true, target: true },
+      { label: "1 minuutti", choice: true },
+      { label: "5 minuuttia", choice: true },
+      { label: "Ei koskaan", choice: true },
+    ],
+    why: "Jos unohdat puhelimen pöydälle, se lukittuu itsestään ennen kuin kukaan ehtii selata sitä.",
+    tip: "<b>Vinkki:</b> Lyhyt aika säästää myös akkua."
+  },
+  {
+    kicker: "Jakaminen",
+    title: "AirDrop vain yhteystiedoille",
+    path: ["Asetukset", "Yleiset", "AirDrop"],
+    screen: "AirDrop",
+    rows: [
+      { label: "Vastaanotto pois", choice: true },
+      { label: "Vain yhteystiedot", choice: true, target: true },
+      { label: "Kaikki 10 minuutin ajan", choice: true },
+    ],
+    why: "Kun AirDrop on auki kaikille, tuntemattomat voivat lähettää sinulle kuvia esimerkiksi koulussa tai bussissa.",
+    tip: "<b>Huomaa:</b> Vaihda nimesi kohdasta Yleiset → Tietoja → Nimi, ettei koko nimesi näy muille."
+  },
+  {
+    kicker: "Turvallisuus",
+    title: "Arkaluontoisen sisällön varoitus",
+    path: ["Asetukset", "Tietosuoja ja turvallisuus", "Arkaluontoisen sisällön varoitus"],
+    screen: "Arkaluontoisen sisällön varoitus",
+    rows: [
+      { label: "Arkaluontoisen sisällön varoitus", toggle: true, on: true, target: true },
+    ],
+    footnote: "Alastonkuvat sumennetaan ennen kuin näet ne. Tunnistus tapahtuu laitteella, Apple ei näe kuvia.",
+    why: "Suojaa sinua ei-toivotuilta kuvilta AirDropissa, Viesteissä ja FaceTimessa.",
+    tip: "<b>Muista:</b> Jos saat ahdistavan kuvan tai viestin, kerro luotettavalle aikuiselle. Se ei ole sinun vikasi."
+  },
+  {
+    kicker: "Salasanat",
+    title: "Tarkista vuotaneet salasanat",
+    path: ["Salasanat-appi", "Suojaus"],
+    screen: "Suojaus",
+    rows: [
+      { label: "Tunnista vuotaneet salasanat", toggle: true, on: true, target: true },
+      { label: "Heikot salasanat", value: "Tarkista", dim: true },
+      { label: "Uudelleenkäytetyt", value: "Tarkista", dim: true },
+    ],
+    why: "iPhone kertoo, jos salasanasi on vuotanut netissä tai käytät samaa salasanaa monessa paikassa.",
+    tip: "<b>Vinkki:</b> Anna iPhonen ehdottaa vahva salasana aina, kun luot uuden tilin."
+  },
+  {
+    kicker: "Tarkistus",
+    title: "Turvatarkistus",
+    path: ["Asetukset", "Tietosuoja ja turvallisuus", "Turvatarkistus"],
+    screen: "Turvatarkistus",
+    rows: [
+      { label: "Hallinnoi jakamista ja käyttöoikeuksia", target: true, value: "›" },
+      { label: "Hätänollaus", dim: true, value: "›" },
+    ],
+    why: "Näet yhdellä kertaa, kenen kanssa jaat sijaintisi, kuvasi ja muut tiedot – ja voit lopettaa jakamisen.",
+    tip: "<b>Hyvä tapa:</b> Käy tämä läpi esimerkiksi kerran kuussa tai kun kaverisuhde muuttuu."
+  },
+];
+
+const $ = id => document.getElementById(id);
+const screenBody = $("screenBody"), info = $("info"), tap = $("tap");
+let index = -1, timers = [], paused = false, start = 0, elapsed = 0, raf;
+
+function esc(s) { return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+function renderPhone(t) {
+  const back = t.path[t.path.length - 2] || "Asetukset";
+  const rows = t.rows.map((r, i) => {
+    const cls = ["row", r.dim ? "dim" : ""].join(" ");
+    let right = "";
+    if (r.toggle) right = `<span class="toggle ${r.start ? "on" : ""}"></span>`;
+    else if (r.choice) right = `<span class="check">✓</span>`;
+    else if (r.value) right = `<span class="val">${esc(r.value)}</span>`;
+    return `<div class="${cls}" data-i="${i}"><span class="label">${esc(r.label)}</span>${right}</div>`;
+  }).join("");
+  screenBody.innerHTML = `
+    <div class="nav"><span class="chev">‹</span>${esc(back)}</div>
+    <div class="ptitle">${esc(t.screen)}</div>
+    <div class="group">${rows}</div>
+    ${t.footnote ? `<div class="footnote">${esc(t.footnote)}</div>` : ""}`;
+}
+
+function rowEl(i) { return screenBody.querySelector(`.row[data-i="${i}"]`); }
+
+function tapOn(el, then) {
+  const s = $("screen").getBoundingClientRect(), r = el.getBoundingClientRect();
+  const target = el.querySelector(".toggle, .check, .val") || el;
+  const tr = target.getBoundingClientRect();
+  tap.style.left = (tr.left - s.left + tr.width / 2 - 23) + "px";
+  tap.style.top = (r.top - s.top + r.height / 2 - 23) + "px";
+  tap.classList.add("show");
+  later(() => { tap.classList.add("press"); el.classList.add("hl"); then && then(); }, 650);
+  later(() => { tap.classList.remove("press"); }, 900);
+  later(() => { el.classList.remove("hl"); }, 1400);
+}
+
+function applyRow(t, i) {
+  const r = t.rows[i], el = rowEl(i);
+  if (r.toggle) el.querySelector(".toggle").classList.toggle("on", r.on);
+  if (r.choice) {
+    screenBody.querySelectorAll(".row").forEach(x => x.classList.remove("checked"));
+    el.classList.add("checked");
+  }
+}
+
+function renderInfo(t) {
+  const crumbs = t.path.map((p, i) =>
+    `${i ? '<span class="arrow">›</span>' : ""}<span class="crumb" data-c="${i}">${esc(p)}</span>`).join("");
+  info.innerHTML = `
+    <div class="fade">
+      <div class="kicker"><span class="dot"></span>${esc(t.kicker)}</div>
+      <h1>${esc(t.title)}</h1>
+      <div class="path">${crumbs}</div>
+      <p class="why">${esc(t.why)}</p>
+      <div class="tip">💡<span>${t.tip}</span></div>
+    </div>`;
+  t.path.forEach((_, i) => later(() => {
+    const c = info.querySelector(`[data-c="${i}"]`);
+    c && c.classList.add("lit");
+  }, 500 + i * 450));
+}
+
+function splash(html) {
+  $("splash").innerHTML = `<div class="fade">${html}</div>`;
+  $("splash").classList.add("show");
+  $("stage").classList.add("hidden");
+}
+
+function show(i) {
+  clearTimers();
+  tap.classList.remove("show");
+  const total = tips.length + 2;
+  index = (i + total) % total;
+  $("splash").classList.remove("show");
+  $("stage").classList.remove("hidden");
+
+  if (index === 0) {
+    $("counter").textContent = "";
+    splash(`<div class="big">📱🔒</div><h2>Onko iPhonesi suojattu?</h2>
+      <p>${tips.length} asetusta, jotka jokaisen kannattaa laittaa päälle – katso ja tarkista omasi!</p>`);
+  } else if (index === total - 1) {
+    $("counter").textContent = "";
+    splash(`<div class="big">✅</div><h2>Tarkista omat asetuksesi nyt!</h2>
+      <p>Ota puhelin esiin ja käy läpi ainakin pääsykoodi, kaksivaiheinen todennus ja Etsi iPhoneni.</p>`);
+  } else {
+    const t = tips[index - 1];
+    $("counter").textContent = `${index} / ${tips.length}`;
+    renderPhone(t);
+    renderInfo(t);
+    const delay = 600 + t.path.length * 450;
+    const targetI = t.rows.findIndex(r => r.target);
+    later(() => tapOn(rowEl(targetI), () => applyRow(t, targetI)), delay);
+    let d = delay + 1500;
+    t.rows.forEach((r, ri) => {
+      if (ri === targetI) return;
+      if (r.auto) { later(() => applyRow(t, ri), d); d += 350; }
+      if (r.second) { later(() => tapOn(rowEl(ri), () => applyRow(t, ri)), d); d += 1500; }
+    });
+    later(() => tap.classList.remove("show"), d + 300);
+  }
+  elapsed = 0; start = performance.now();
+}
+
+function duration() { return index === 0 || index === tips.length + 1 ? 6000 : SLIDE_MS; }
+
+function tick(now) {
+  if (!paused) {
+    const p = (elapsed + now - start) / duration();
+    $("bar").style.width = Math.min(p, 1) * 100 + "%";
+    if (p >= 1) show(index + 1);
+  }
+  raf = requestAnimationFrame(tick);
+}
+
+function setPaused(v) {
+  if (v === paused) return;
+  paused = v;
+  if (paused) elapsed += performance.now() - start; else start = performance.now();
+  document.body.classList.toggle("paused", paused);
+  $("state").textContent = paused ? "Tauko" : "Toistetaan";
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight") show(index + 1);
+  else if (e.key === "ArrowLeft") show(index - 1);
+  else if (e.key === " ") { e.preventDefault(); setPaused(!paused); }
+  else if (e.key.toLowerCase() === "f") {
+    document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+  }
+});
+
+function updateClock() {
+  const d = new Date();
+  $("clock").textContent = d.getHours() + "." + String(d.getMinutes()).padStart(2, "0");
+}
+updateClock(); setInterval(updateClock, 30000);
+
+show(0);
+raf = requestAnimationFrame(tick);
+</script>
+</body>
+</html>
